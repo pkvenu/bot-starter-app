@@ -94,7 +94,7 @@ function getBotIdentity(){
     platform.get('/account/~/extension/~')
         .then(function(extensionInfo){
             var identity = JSON.parse(extensionInfo.text());
-            //console.log("Bot Identity :" + JSON.stringify(identity));
+            console.log("Bot Identity :" + JSON.stringify(identity));
             setTimeout(function() {
                 IsBotAddedToGlip(identity.id);
             }, 5000);
