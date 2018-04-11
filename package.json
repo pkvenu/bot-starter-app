@@ -1,0 +1,23 @@
+{
+  "name": "botstarterapp",
+  "version": "1.0.0",
+  "description": "node sample app for webhook subscription",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node",
+    "webhook",
+    "subscription",
+    "ringcentral"
+  ],
+  "author": "pawan.venugopal@ringcentral.com",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^5.0.1",
+    "express": "^4.16.3",
+    "request": "^2.85.0",
+    "ringcentral": "^3.2.0"
+  }
+}
