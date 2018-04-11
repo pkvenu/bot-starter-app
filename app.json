@@ -1,0 +1,36 @@
+{
+    "name": "Glip Bot Starter Kit",
+    "description": "Starter Glip Bot App",
+    "keywords": [
+      "Glip",
+      "Bot",
+      "RingCentral",
+      "Platform"
+    ],
+    "repository": "https://github.com/pkvenu/bot-starter-app",
+    "script": {
+        "postdeploy": "node app.js"
+    },
+    "env": {
+      "RINGCENTRAL_ENV": {
+        "description": "RingCentral Enviornment",
+        "value": "https://platform.ringcentral.com"
+      },
+      "CLIENT_ID": {
+        "description": "Application Client ID",
+        "value": ""
+      },
+      "CLIENT_SECRET": {
+        "description": "Application Client Secret",
+        "value": ""
+      },
+      "REDIRECT_HOST": {
+        "description": "Oauth Redirect URL",
+        "value": ""
+      },
+      "PORT": {
+        "description": "Application Port",
+        "value": "4390"
+      }
+    }
+  }
