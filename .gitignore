@@ -63,3 +63,4 @@ typings/
 token.dat
 
 .env
+node_modules
