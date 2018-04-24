@@ -16,6 +16,7 @@
   "author": "pawan.venugopal@ringcentral.com",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.18.2",
     "dotenv": "^5.0.1",
     "express": "^4.16.3",
     "request": "^2.85.0",

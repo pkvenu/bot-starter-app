@@ -1,20 +1,22 @@
-//require('dotenv').config();
+require('dotenv').config();
 
 var express = require('express');
 var request = require('request');
 const RC = require('ringcentral');
+var bodyParser = require('body-parser');
 
 
-const PORT= process.env.PORT;
-const REDIRECT_HOST= process.env.REDIRECT_HOST;
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const RINGCENTRAL_ENV= process.env.RINGCENTRAL_ENV;
+const PORT= process.env.RINGCENTRAL_PORT;
+const REDIRECT_HOST= process.env.RINGCENTRAL_REDIRECT_URL;
+const CLIENT_ID = process.env.RINGCENTRAL_CLIENT_ID;
+const CLIENT_SECRET = process.env.RINGCENTRAL_CLIENT_SECRET;
+const RINGCENTRAL_ENV= process.env.RINGCENTRAL_SERVER_URL;
 
 
 var app = express();
+app.use(bodyParser.json());
 var platform, subscription, rcsdk, subscriptionId, bot_token;
-var creatorID;
+var creatorID, botID;
 
 
 // Lets start our server
@@ -45,7 +47,7 @@ app.get('/oauth', function (req, res) {
         res.send({"Error": "Looks like we're not getting code."});
         console.log("Looks like we're not getting code.");
     }else {
-        //console.log("Creator Extension ID: " + req.query.creator_extension_id);
+        console.log("Creator Extension ID: " + req.query.creator_extension_id);
         creatorID = req.query.creator_extension_id;
         platform.login({
             code : req.query.code,
@@ -53,12 +55,12 @@ app.get('/oauth', function (req, res) {
         }).then(function(authResponse){
             var obj = authResponse.json();
             bot_token = obj.access_token;
-            res.send(obj)
+            //res.send(obj)
+            res.send({});
+            console.log("Token obj ;" + JSON.stringify(obj));
             console.log("Bot Token :" + bot_token);
             getBotIdentity();
-            setTimeout(function() {
-                subscribeToGlipEvents();
-            }, 10000);
+
         }).catch(function(e){
             console.error(e)
             res.send("Error: " + e);
@@ -67,26 +69,34 @@ app.get('/oauth', function (req, res) {
 });
 
 // Callback method received after subscribing to webhook
-app.post('/callback', function (req, res) {
+app.post('/glip/receive', function (req, res) {
+
     var validationToken = req.get('Validation-Token');
-    var body =[];
 
     if(validationToken) {
         console.log('Responding to RingCentral as last leg to create new Webhook');
         res.setHeader('Validation-Token', validationToken);
-        res.statusCode = 200;
-        res.end();
-    } else {
-        req.on('data', function(chunk) {
-            body.push(chunk);
-        }).on('end', function() {
-            body = Buffer.concat(body).toString();
-            console.log('WEBHOOK EVENT BODY: ', body);
-            var obj = JSON.parse(body);
-            res.statusCode = 200;
-            res.end(body);
+        res.status(200).json({
+            message: 'Set Header Validation'
         });
-    }
+    } else {
+        console.log(JSON.stringify(req.body));
+        res.status(200).send(req.body);
+        console.log("EventTpe: " + req.body.body.eventType);
+        switch (req.body.body.eventType) {
+            case "Delete":
+                console.log("Bot Deleted")
+                break; 
+            case "GroupJoined":
+                console.log("Group Joined :" + req.body.body.id);
+                break; 
+            case "PostAdded":
+                console.log("Post Added :" + JSON.stringify(req.body.body));
+                break;     
+            default: 
+                console.log("Default: " + JSON.stringify(req.body));
+        }
+   }
 });
 
 // Method to Get Bot Information.
@@ -96,8 +106,10 @@ function getBotIdentity(){
             var identity = JSON.parse(extensionInfo.text());
             console.log("Bot Identity :" + JSON.stringify(identity));
             setTimeout(function() {
-                IsBotAddedToGlip(identity.id);
-            }, 5000);
+                botID = identity.id;
+                subscribeToGlipEvents();
+                IsBotAddedToGlip();
+            }, 10000);
         }).catch(function(e){
             console.error(e);
             throw e;
@@ -106,27 +118,29 @@ function getBotIdentity(){
 
 // Method to Check if the bot is added to Glip
 // TODO: Need to find a better way to achive this task
-function IsBotAddedToGlip(botId){
-    platform.get('/glip/persons/'+botId)
+function IsBotAddedToGlip(){
+    platform.get('/glip/persons/'+botID)
         .then(function(botInfo){
                console.log("Bot is Added to Glip");
-               createGroup(botId,creatorID); 
+               createGroup(); 
         }).catch(function(e){
             console.log("Waiting for bot to be added to Glip...!");
             setTimeout(function() {
-                IsBotAddedToGlip(botId);
+                IsBotAddedToGlip();
             }, 10000);
         })
 }
 
 // Method to Create Group
-function createGroup(botId, creatorId){
+function createGroup(){
    console.log("In Create Group"); 
+   console.log("BotID: "+ botID);
+   console.log ("CreatorID: "+ creatorID);
    platform.post('/glip/groups',{
         type: "PrivateChat",
         members: [
-            botId,
-            creatorId
+            botID,
+            creatorID
         ]
    }).then(function(groupInfo){
         console.log("Group Created");
@@ -159,19 +173,23 @@ function subscribeToGlipEvents(){
 
     var requestData = {
         "eventFilters": [
-            "/restapi/v1.0/glip/posts",
-            "/restapi/v1.0/glip/groups"
+            //Get Glip Post Events
+            "/restapi/v1.0/glip/posts", 
+            //Get Glip Group Events
+            "/restapi/v1.0/glip/groups",
+            // Get Bot Extension Events (used to detect when a bot is removed)
+            "/restapi/v1.0/account/~/extension/"+ botID
         ],
         "deliveryMode": {
             "transportType": "WebHook",
-            "address": REDIRECT_HOST + "/callback"
+            "address": REDIRECT_HOST + "/glip/receive"
         },
-        "expiresIn": 630720000
+        "expiresIn": 500000000
     };
     platform.post('/subscription', requestData)
         .then(function (subscriptionResponse) {
             console.log('Subscription Response: ', subscriptionResponse.json());
-            subscription = subscriptionResponse;
+            subscription = subscriptionResponse.json();
             subscriptionId = subscriptionResponse.id;
         }).catch(function (e) {
             console.error(e);
